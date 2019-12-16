@@ -1,0 +1,50 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var imageCollection = ee.ImageCollection("UMT/NTSG/v2/MODIS/GPP"),
+    ushcnpoly = ee.FeatureCollection("users/gregmaurer/USHCN_10km_polygons");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Add the ushcn dataset
+//var ushcn = ee.FeatureCollection("users/gregmaurer/USHCN_10km_polygons")
+
+//var ushcnpolysub = ee.FeatureCollection(ushcnpoly.toList(5));
+//print(ushcnpolysub.size())
+
+Map.addLayer(ushcnpoly)
+print(ushcnpoly.size())
+
+print(imageCollection.size())
+//IMPORT MODIS GPP
+var imageCollection = ee.ImageCollection("UMT/NTSG/v2/MODIS/GPP") //Modis GPP
+//.filter(ee.Filter.eq('wrs_path', 94))
+//.filter(ee.Filter.eq('wrs_row', 86)) 
+.filterDate(ee.Date.fromYMD(2000,01,01), ee.Date.fromYMD(2017,01,01))
+
+print(imageCollection.size())
+
+// Empty Collection to fill
+var ft = ee.FeatureCollection(ee.List([]))
+
+var fill = function(img, ini) {
+  // type cast
+  var inift = ee.FeatureCollection(ini)
+
+  // gets the values for the points in the current img
+  var ft2 = img.reduceRegions(ushcnpoly, ee.Reducer.mean())
+
+  // gets the date of the img
+  var date = img.date().format()
+
+  // writes the date in each feature
+  var ft3 = ft2.map(function(f){return f.set("date", date)})
+
+  // merges the FeatureCollections
+  return inift.merge(ft3)
+}
+
+// Iterates over the ImageCollection
+var newft = ee.FeatureCollection(imageCollection.iterate(fill, ft))
+
+// Export
+Export.table.toDrive(newft,
+"GPP_extracts_for_USHCN",
+"ee_output",
+"modGPP_ushcn_1")
